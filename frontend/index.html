@@ -3,14 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <title>Lecture Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Lecture Video</h1>
-  <video id="videoPlayer" width="640" controls>
-    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-  </video>
-  <p>Progress: <span id="progressText">0%</span></p>
+<body class="bg-gray-100 text-gray-800 font-sans p-8">
+  <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4 text-center">🎓 Lecture Progress Tracker</h1>
+
+    <div class="flex flex-col items-center">
+      <video id="videoPlayer" class="w-full mb-4 rounded-md border-2 border-gray-300" controls>
+        <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+      </video>
+      <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden mb-2">
+        <div id="progressBar" class="bg-green-500 h-full w-0 transition-all duration-300 ease-in-out"></div>
+      </div>
+      <p class="text-sm text-gray-700">Progress: <span id="progressText">0%</span></p>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

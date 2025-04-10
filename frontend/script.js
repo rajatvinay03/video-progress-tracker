@@ -29,11 +29,14 @@ function getTotalWatchedSeconds(intervals) {
 }
 
 function updateProgressDisplay() {
-  const merged = mergeIntervals(watchedIntervals);
-  const totalWatched = getTotalWatchedSeconds(merged);
-  const progress = ((totalWatched / videoDuration) * 100).toFixed(2);
-  progressText.textContent = `${progress}%`;
-}
+    const merged = mergeIntervals(watchedIntervals);
+    const totalWatched = getTotalWatchedSeconds(merged);
+    const progress = ((totalWatched / videoDuration) * 100).toFixed(2);
+    progressText.textContent = `${progress}%`;
+  
+    const progressBar = document.getElementById("progressBar");
+    progressBar.style.width = `${progress}%`;
+  }
 
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
