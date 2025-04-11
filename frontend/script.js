@@ -5,7 +5,7 @@ let watchedIntervals = [];
 let startTime = null;
 let videoDuration = 0;
 
-const API_URL = "http://localhost:3000/api/progress/" + userId;
+const API_URL = "/api/progress/" + userId;
 
 function mergeIntervals(intervals) {
   if (!intervals.length) return [];
