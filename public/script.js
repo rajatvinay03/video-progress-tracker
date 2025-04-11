@@ -1,15 +1,16 @@
 const video = document.getElementById("videoPlayer");
 const progressText = document.getElementById("progressText");
-const userId = "user123";
+const userId = "user123"; // Static for demo
 let watchedIntervals = [];
 let startTime = null;
 let videoDuration = 0;
-const MIN_INTERVAL_SECONDS = 2;
+
 const API_URL = "/api/progress/" + userId;
 
 function mergeIntervals(intervals) {
   if (!intervals.length) return [];
   intervals.sort((a, b) => a[0] - b[0]);
+
   const merged = [intervals[0]];
   for (let i = 1; i < intervals.length; i++) {
     const prev = merged[merged.length - 1];
@@ -27,103 +28,169 @@ function getTotalWatchedSeconds(intervals) {
   return intervals.reduce((sum, [start, end]) => sum + (end - start), 0);
 }
 
+function updateWatchedBar(intervals, duration) {
+  if (!duration || duration === 0) {
+    console.warn("Duration is zero, cannot update watched bar.");
+    return;
+  }
+
+  const merged = mergeIntervals(intervals);
+  let uniqueTime = 0;
+  merged.forEach(([start, end]) => {
+    uniqueTime += end - start;
+  });
+
+  const percentage = (uniqueTime / duration) * 100;
+  document.getElementById('watched-bar').style.width = `${percentage}%`;
+
+  console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
+}
+
+function updateTimeDisplay(intervals, duration) {
+  let totalWatched = 0;
+  intervals.forEach(([start, end]) => totalWatched += end - start);
+  const display = document.getElementById('time-display');
+  display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
+} 
+
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = Math.floor(seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
 
+function showBadge(progress) {
+  if (isNaN(progress)) return;
+
+  let badge = '';
+  if (progress >= 90) badge = '🎯 Master Learner!';
+  else if (progress >= 50) badge = '📘 Halfway Hero!';
+  else if (progress >= 25) badge = '🔥 Rising Star!';
+  else badge = '🚀 Getting Started!';
+
+  document.getElementById("badge-display").innerText = `Badge: ${badge}`;
+}
+
 function updateProgressDisplay() {
   const merged = mergeIntervals(watchedIntervals);
   const totalWatched = getTotalWatchedSeconds(merged);
-  const progress = (totalWatched / videoDuration) * 100;
+  const safeDuration = videoDuration || video.duration || 1;
+  const progress = (totalWatched / safeDuration) * 100;
 
-  // Update Progress %
-  progressText.textContent = `${Math.floor(progress)}%`;
-  document.getElementById("progressBar").style.width = `${progress}%`;
+  const progressText = document.getElementById("progressText");
+  const progressBar = document.getElementById("progressBar");
 
-  // Update Watched Bar
-  const watchedBar = document.getElementById("watched-bar");
-  watchedBar.style.width = `${progress}%`;
+  progressBar.style.width = `${progress}%`;
 
-  // Update Time Text
-  document.getElementById("time-display").textContent = `Watched: ${formatTime(totalWatched)} / ${formatTime(videoDuration)}`;
+  // Smooth animate the percentage
+  let start = parseFloat(progressText.textContent) || 0;
+  let end = progress;
+  let step = (end - start) / 20;
+  let count = 0;
 
-  // Update Badge
-  let badge = "";
-  if (progress >= 90) badge = "🎯 Master Learner!";
-  else if (progress >= 50) badge = "📘 Halfway Hero!";
-  else if (progress >= 25) badge = "🔥 Rising Star!";
-  else badge = "🚀 Getting Started!";
-  document.getElementById("badge-display").innerText = `Badge: ${badge}`;
+  const animate = () => {
+    if (count >= 20) return;
+    start += step;
+    progressText.textContent = `${start.toFixed(0)}%`;
+    count++;
+    requestAnimationFrame(animate);
+  };
+  animate();
 
-  // Checkmark
+  updateTimeDisplay(merged, safeDuration);
+
   const checkmark = document.getElementById("checkmarkContainer");
-  if (progress >= 100) checkmark.classList.remove("hidden");
-  else checkmark.classList.add("hidden");
-}
-
-function saveProgress() {
-  fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ intervals: watchedIntervals, duration: videoDuration }),
-  });
-}
-
-async function loadProgress() {
-  try {
-    const res = await fetch(API_URL);
-    if (!res.ok) throw new Error("Could not load progress.");
-    const data = await res.json();
-    watchedIntervals = data.intervals || [];
-    updateProgressDisplay();
-  } catch (err) {
-    console.error("Failed to load progress:", err);
-    watchedIntervals = [];
+  const isComplete = Math.min(progress, 100) >= 99.5;
+  if (isComplete) {
+    checkmark.classList.remove("hidden");
+  } else {
+    checkmark.classList.add("hidden");
   }
+
+  updateWatchedBar(merged, safeDuration);
+  showBadge(progress); 
 }
 
-function resetProgress() {
-  fetch(API_URL, { method: "DELETE" })
-    .then(() => {
-      watchedIntervals = [];
-      startTime = null;
-      video.currentTime = 0;
-      updateProgressDisplay();
-    })
-    .catch((err) => console.error("Error resetting progress:", err));
-}
-
-// Event Listeners
-video.addEventListener("loadedmetadata", () => {
-  videoDuration = Math.floor(video.duration);
-  loadProgress();
-});
-
+// Track play
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
 });
 
+// Track pause
 video.addEventListener("pause", () => {
   const endTime = Math.floor(video.currentTime);
-  if (startTime !== null && endTime > startTime + MIN_INTERVAL_SECONDS) {
+  if (startTime !== null && endTime > startTime) {
     watchedIntervals.push([startTime, endTime]);
-    watchedIntervals = mergeIntervals(watchedIntervals);
-    saveProgress();
-    updateProgressDisplay();
-  }
-  startTime = null;
-});
-
-video.addEventListener("ended", () => {
-  if (startTime !== null && videoDuration > startTime + MIN_INTERVAL_SECONDS) {
-    watchedIntervals.push([startTime, videoDuration]);
     watchedIntervals = mergeIntervals(watchedIntervals);
     saveProgress();
     updateProgressDisplay();
     startTime = null;
   }
 });
+
+// Track during playback
+video.addEventListener("timeupdate", () => {
+  if (startTime === null) startTime = Math.floor(video.currentTime);
+
+  const current = Math.floor(video.currentTime);
+  const last = watchedIntervals.at(-1);
+
+  if (!last || current > last[1]) {
+    watchedIntervals.push([current, current + 1]);
+    watchedIntervals = mergeIntervals(watchedIntervals);
+  }
+
+  updateProgressDisplay();
+});
+
+// Save when ended
+video.addEventListener("ended", () => {
+  saveProgress();
+});
+
+function saveProgress() {
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ intervals: watchedIntervals, duration: videoDuration })
+  });
+}
+
+async function loadProgress() {
+  watchedIntervals = [];
+  video.currentTime = 0;
+  progressText.textContent = "0%";
+  document.getElementById("progressBar").style.width = "0%";
+  document.getElementById("time-display").textContent = "Watched: 00:00 / 00:00";
+  document.getElementById("checkmarkContainer").classList.add("hidden");
+  document.getElementById("badge-display").innerText = "";
+  updateProgressDisplay();
+}
+
+video.addEventListener("loadedmetadata", () => {
+  videoDuration = Math.floor(video.duration);
+  loadProgress();
+  console.log("Loaded Metadata → Duration:", videoDuration);
+});
+
+function resetProgress() {
+  fetch(API_URL, {
+    method: "DELETE",
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("Reset successful:", data);
+      watchedIntervals = [];
+      video.currentTime = 0;
+      progressText.textContent = "0%";
+      document.getElementById("progressBar").style.width = "0%";
+      document.getElementById("watched-bar").style.width = "0%";
+      document.getElementById("checkmarkContainer").classList.add("hidden");
+      document.getElementById("badge-display").innerText = "";
+      updateTimeDisplay([], videoDuration);
+      updateWatchedBar([], videoDuration);
+    })
+    .catch((err) => console.error("Error resetting progress:", err));
+}
 
 document.getElementById("resetBtn").addEventListener("click", resetProgress);
