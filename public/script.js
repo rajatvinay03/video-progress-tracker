@@ -29,90 +29,94 @@ function getTotalWatchedSeconds(intervals) {
 }
 
 function updateWatchedBar(intervals, duration) {
-    if (!duration || duration === 0) {
-      console.warn("Duration is zero, cannot update watched bar.");
-      return;
-    }
-  
-    const merged = mergeIntervals(intervals);
-    let uniqueTime = 0;
-    merged.forEach(([start, end]) => {
-      uniqueTime += end - start;
-    });
-  
-    const percentage = (uniqueTime / duration) * 100;
-    document.getElementById('watched-bar').style.width = `${percentage}%`;
-  
-    console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
+  if (!duration || duration === 0) {
+    console.warn("Duration is zero, cannot update watched bar.");
+    return;
+  }
+
+  const merged = mergeIntervals(intervals);
+  let uniqueTime = 0;
+  merged.forEach(([start, end]) => {
+    uniqueTime += end - start;
+  });
+
+  const percentage = (uniqueTime / duration) * 100;
+  document.getElementById('watched-bar').style.width = `${percentage}%`;
+
+  console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
 }
 
 function updateTimeDisplay(intervals, duration) {
-    let totalWatched = 0;
-    intervals.forEach(([start, end]) => totalWatched += end - start);
-    const display = document.getElementById('time-display');
-    display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
-  } 
+  let totalWatched = 0;
+  intervals.forEach(([start, end]) => totalWatched += end - start);
+  const display = document.getElementById('time-display');
+  display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
+} 
 
-  function formatTime(seconds) {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function showBadge(progress) {
+  if (isNaN(progress)) return;
+
+  let badge = '';
+  if (progress >= 90) badge = '🎯 Master Learner!';
+  else if (progress >= 50) badge = '📘 Halfway Hero!';
+  else if (progress >= 25) badge = '🔥 Rising Star!';
+  else badge = '🚀 Getting Started!';
+
+  document.getElementById("badge-display").innerText = `Badge: ${badge}`;
+}
+
+function updateProgressDisplay() {
+  const merged = mergeIntervals(watchedIntervals);
+  const totalWatched = getTotalWatchedSeconds(merged);
+  const safeDuration = videoDuration || video.duration || 1;
+  const progress = (totalWatched / safeDuration) * 100;
+
+  const progressText = document.getElementById("progressText");
+  const progressBar = document.getElementById("progressBar");
+
+  progressBar.style.width = `${progress}%`;
+
+  // Smooth animate the percentage
+  let start = parseFloat(progressText.textContent) || 0;
+  let end = progress;
+  let step = (end - start) / 20;
+  let count = 0;
+
+  const animate = () => {
+    if (count >= 20) return;
+    start += step;
+    progressText.textContent = `${start.toFixed(0)}%`;
+    count++;
+    requestAnimationFrame(animate);
+  };
+  animate();
+
+  updateTimeDisplay(merged, safeDuration);
+
+  const checkmark = document.getElementById("checkmarkContainer");
+  const isComplete = Math.min(progress, 100) >= 99.5;
+  if (isComplete) {
+    checkmark.classList.remove("hidden");
+  } else {
+    checkmark.classList.add("hidden");
   }
 
-  function showBadge(progress) {
-    let badge = '';
-    if (progress >= 90) badge = '🎯 Master Learner!';
-    else if (progress >= 50) badge = '📘 Halfway Hero!';
-    else if (progress >= 25) badge = '🔥 Rising Star!';
-    else badge = '🚀 Getting Started!';
-  
-    document.getElementById("badge-display").innerText = `Badge: ${badge}`;
-  }
+  updateWatchedBar(merged, safeDuration);
+  showBadge(progress); 
+}
 
-  function updateProgressDisplay() {
-    const merged = mergeIntervals(watchedIntervals);
-    const totalWatched = getTotalWatchedSeconds(merged);
-    const progress = (totalWatched / videoDuration) * 100;
-  
-    const progressText = document.getElementById("progressText");
-    const progressBar = document.getElementById("progressBar");
-  
-    progressBar.style.width = `${progress}%`;
-  
-    // Smooth animate the percentage
-    let start = parseFloat(progressText.textContent) || 0;
-    let end = progress;
-    let step = (end - start) / 20;
-    let count = 0;
-  
-    const animate = () => {
-      if (count >= 20) return;
-      start += step;
-      progressText.textContent = `${start.toFixed(0)}%`;
-      count++;
-      requestAnimationFrame(animate);
-    };
-    animate();
-  
-    updateTimeDisplay(merged, videoDuration);
-  
-    // Show checkmark if completed
-    const checkmark = document.getElementById("checkmarkContainer");
-    if (progress >= 100) {
-      checkmark.classList.remove("hidden");
-    } else {
-      checkmark.classList.add("hidden");
-    }
-
-    updateWatchedBar(merged, videoDuration);
-    showBadge(progress); 
-  }
-  
-
+// Track play
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
 });
 
+// Track pause
 video.addEventListener("pause", () => {
   const endTime = Math.floor(video.currentTime);
   if (startTime !== null && endTime > startTime) {
@@ -124,6 +128,22 @@ video.addEventListener("pause", () => {
   }
 });
 
+// Track during playback
+video.addEventListener("timeupdate", () => {
+  if (startTime === null) startTime = Math.floor(video.currentTime);
+
+  const current = Math.floor(video.currentTime);
+  const last = watchedIntervals.at(-1);
+
+  if (!last || current > last[1]) {
+    watchedIntervals.push([current, current + 1]);
+    watchedIntervals = mergeIntervals(watchedIntervals);
+  }
+
+  updateProgressDisplay();
+});
+
+// Save when ended
 video.addEventListener("ended", () => {
   saveProgress();
 });
@@ -133,40 +153,44 @@ function saveProgress() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ intervals: watchedIntervals, duration: videoDuration })
-    });
+  });
 }
 
 async function loadProgress() {
-watchedIntervals = [];
+  watchedIntervals = [];
   video.currentTime = 0;
   progressText.textContent = "0%";
   document.getElementById("progressBar").style.width = "0%";
   document.getElementById("time-display").textContent = "Watched: 00:00 / 00:00";
   document.getElementById("checkmarkContainer").classList.add("hidden");
   document.getElementById("badge-display").innerText = "";
-    updateProgressDisplay();
+  updateProgressDisplay();
 }
 
 video.addEventListener("loadedmetadata", () => {
   videoDuration = Math.floor(video.duration);
   loadProgress();
-  console.log("Loaded Metadata → Duration:", videoDuration);});
-  
-  function resetProgress() {
-    fetch(API_URL, {
-      method: "DELETE",
+  console.log("Loaded Metadata → Duration:", videoDuration);
+});
+
+function resetProgress() {
+  fetch(API_URL, {
+    method: "DELETE",
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("Reset successful:", data);
+      watchedIntervals = [];
+      video.currentTime = 0;
+      progressText.textContent = "0%";
+      document.getElementById("progressBar").style.width = "0%";
+      document.getElementById("watched-bar").style.width = "0%";
+      document.getElementById("checkmarkContainer").classList.add("hidden");
+      document.getElementById("badge-display").innerText = "";
+      updateTimeDisplay([], videoDuration);
+      updateWatchedBar([], videoDuration);
     })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Reset successful:", data);
-        watchedIntervals = [];
-        video.currentTime = 0;
-        progressText.textContent = "0%";
-        document.getElementById("progressBar").style.width = "0%";
-        document.getElementById("watched-bar").style.width = "0%";
-        document.getElementById("checkmarkContainer").classList.add("hidden");
-        document.getElementById("badge-display").innerText = "";
-      })
-      .catch((err) => console.error("Error resetting progress:", err));
-  }
-  document.getElementById("resetBtn").addEventListener("click", resetProgress);
+    .catch((err) => console.error("Error resetting progress:", err));
+}
+
+document.getElementById("resetBtn").addEventListener("click", resetProgress);
