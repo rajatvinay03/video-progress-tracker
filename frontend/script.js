@@ -51,15 +51,13 @@ function updateTimeDisplay(intervals, duration) {
     intervals.forEach(([start, end]) => totalWatched += end - start);
     const display = document.getElementById('time-display');
     display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
-  }
-  
+  } 
 
   function formatTime(seconds) {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   }
-  
 
   function updateProgressDisplay() {
     const merged = mergeIntervals(watchedIntervals);
@@ -130,31 +128,25 @@ function saveProgress() {
 }
 
 async function loadProgress() {
-  const res = await fetch(API_URL);
-  const data = await res.json();
-  watchedIntervals = data.intervals || [];
-  console.log("Loaded Progress:", watchedIntervals, "Duration:", videoDuration);
-  video.currentTime = watchedIntervals.length ? watchedIntervals[watchedIntervals.length - 1][1] : 0;
-  updateProgressDisplay();
+//   const res = await fetch(API_URL);
+//   const data = await res.json();
+//   watchedIntervals = data.intervals || [];
+//   console.log("Loaded Progress:", watchedIntervals, "Duration:", videoDuration);
+//   video.currentTime = 0; 
+watchedIntervals = [];
+  video.currentTime = 0;
+  progressText.textContent = "0%";
+  document.getElementById("progressBar").style.width = "0%";
+  document.getElementById("time-display").textContent = "Watched: 00:00 / 00:00";
+  document.getElementById("checkmarkContainer").classList.add("hidden");
+    updateProgressDisplay();
 }
 
 video.addEventListener("loadedmetadata", () => {
   videoDuration = Math.floor(video.duration);
   loadProgress();
   console.log("Loaded Metadata → Duration:", videoDuration);});
-
-  function resetProgress() {
-    fetch(API_URL, { method: "DELETE" })
-      .then(res => res.json())
-      .then(data => {
-        console.log(data.message || "Progress reset");
-        watchedIntervals = [];
-        video.currentTime = 0;
-        updateProgressDisplay();
-      })
-      .catch(err => console.error("Error resetting progress:", err));
-  }
-  document.getElementById("resetBtn").addEventListener("click", resetProgress);
+  
 
   function resetProgress() {
     fetch(API_URL, {
@@ -164,10 +156,12 @@ video.addEventListener("loadedmetadata", () => {
       .then((data) => {
         console.log("Reset successful:", data);
         watchedIntervals = [];
+        video.currentTime = 0;
         progressText.textContent = "0%";
         document.getElementById("progressBar").style.width = "0%";
         document.getElementById("watched-bar").style.width = "0%";
-        video.currentTime = 0;
+        document.getElementById("checkmarkContainer").classList.add("hidden");
       })
       .catch((err) => console.error("Error resetting progress:", err));
   }
+  document.getElementById("resetBtn").addEventListener("click", resetProgress);

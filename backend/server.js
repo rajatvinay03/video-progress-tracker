@@ -34,7 +34,10 @@ app.post('/api/progress/:userId', (req, res) => {
 app.delete('/api/progress/:userId', (req, res) => {
     const userId = req.params.userId;
     const filePath = './userProgress.json';
-  
+    if (db[userId]) {
+        delete db[userId];
+      }
+      res.json({ message: "Progress reset" });
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: "Progress file not found." });
     }
