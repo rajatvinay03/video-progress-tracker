@@ -6,7 +6,9 @@ let startTime = null;
 let videoDuration = 0;
 
 const API_URL = "/api/progress/" + userId;
+const MIN_INTERVAL = 2;
 
+// Merge overlapping intervals
 function mergeIntervals(intervals) {
   if (!intervals.length) return [];
   intervals.sort((a, b) => a[0] - b[0]);
@@ -24,34 +26,29 @@ function mergeIntervals(intervals) {
   return merged;
 }
 
+// Get total watched seconds
 function getTotalWatchedSeconds(intervals) {
   return intervals.reduce((sum, [start, end]) => sum + (end - start), 0);
 }
 
+// Update visual bar showing watched segments
 function updateWatchedBar(intervals, duration) {
-  if (!duration || duration === 0) {
-    console.warn("Duration is zero, cannot update watched bar.");
-    return;
-  }
+  if (!duration) return;
 
   const merged = mergeIntervals(intervals);
   let uniqueTime = 0;
-  merged.forEach(([start, end]) => {
-    uniqueTime += end - start;
-  });
+  merged.forEach(([start, end]) => uniqueTime += end - start);
 
   const percentage = (uniqueTime / duration) * 100;
   document.getElementById('watched-bar').style.width = `${percentage}%`;
-
-  console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
 }
 
+// Update time display
 function updateTimeDisplay(intervals, duration) {
-  let totalWatched = 0;
-  intervals.forEach(([start, end]) => totalWatched += end - start);
+  const totalWatched = getTotalWatchedSeconds(intervals);
   const display = document.getElementById('time-display');
   display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
-} 
+}
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -59,6 +56,7 @@ function formatTime(seconds) {
   return `${m}:${s}`;
 }
 
+// Show badge
 function showBadge(progress) {
   if (isNaN(progress)) return;
 
@@ -71,27 +69,26 @@ function showBadge(progress) {
   document.getElementById("badge-display").innerText = `Badge: ${badge}`;
 }
 
+// Update progress bar and info
 function updateProgressDisplay() {
   const merged = mergeIntervals(watchedIntervals);
   const totalWatched = getTotalWatchedSeconds(merged);
   const safeDuration = videoDuration || video.duration || 1;
   const progress = (totalWatched / safeDuration) * 100;
 
-  const progressText = document.getElementById("progressText");
   const progressBar = document.getElementById("progressBar");
-
   progressBar.style.width = `${progress}%`;
 
-  // Smooth animate the percentage
-  let start = parseFloat(progressText.textContent) || 0;
+  // Smooth animate percentage
+  let currentText = parseFloat(progressText.textContent) || 0;
   let end = progress;
-  let step = (end - start) / 20;
+  let step = (end - currentText) / 20;
   let count = 0;
 
   const animate = () => {
     if (count >= 20) return;
-    start += step;
-    progressText.textContent = `${start.toFixed(0)}%`;
+    currentText += step;
+    progressText.textContent = `${Math.min(currentText, 100).toFixed(0)}%`;
     count++;
     requestAnimationFrame(animate);
   };
@@ -100,87 +97,85 @@ function updateProgressDisplay() {
   updateTimeDisplay(merged, safeDuration);
 
   const checkmark = document.getElementById("checkmarkContainer");
-  const isComplete = Math.min(progress, 100) >= 99.5;
-  if (isComplete) {
-    checkmark.classList.remove("hidden");
-  } else {
-    checkmark.classList.add("hidden");
-  }
+  checkmark.classList.toggle("hidden", progress < 99.5);
 
   updateWatchedBar(merged, safeDuration);
-  showBadge(progress); 
+  showBadge(progress);
 }
 
-// Track play
+// On play, mark start time
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
 });
 
-// Track pause
+// On pause, record interval
 video.addEventListener("pause", () => {
   const endTime = Math.floor(video.currentTime);
-  if (startTime !== null && endTime > startTime) {
+  if (startTime !== null && (endTime - startTime >= MIN_INTERVAL)) {
     watchedIntervals.push([startTime, endTime]);
     watchedIntervals = mergeIntervals(watchedIntervals);
     saveProgress();
     updateProgressDisplay();
-    startTime = null;
   }
+  startTime = null;
 });
 
-// Track during playback
+// Only update display on timeupdate
 video.addEventListener("timeupdate", () => {
-  if (startTime === null) startTime = Math.floor(video.currentTime);
-
-  const current = Math.floor(video.currentTime);
-  const last = watchedIntervals.at(-1);
-
-  if (!last || current > last[1]) {
-    watchedIntervals.push([current, current + 1]);
-    watchedIntervals = mergeIntervals(watchedIntervals);
-  }
-
   updateProgressDisplay();
 });
 
-// Save when ended
+// Save when video ends
 video.addEventListener("ended", () => {
   saveProgress();
 });
 
+// Save progress
 function saveProgress() {
   fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ intervals: watchedIntervals, duration: videoDuration })
+    body: JSON.stringify({
+      intervals: watchedIntervals,
+      duration: videoDuration,
+      lastPosition: Math.floor(video.currentTime),
+    }),
   });
 }
 
+// Load progress from server
 async function loadProgress() {
-  watchedIntervals = [];
-  video.currentTime = 0;
-  progressText.textContent = "0%";
-  document.getElementById("progressBar").style.width = "0%";
-  document.getElementById("time-display").textContent = "Watched: 00:00 / 00:00";
-  document.getElementById("checkmarkContainer").classList.add("hidden");
-  document.getElementById("badge-display").innerText = "";
-  updateProgressDisplay();
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error("Failed to load saved progress");
+
+    const data = await res.json();
+    watchedIntervals = data.intervals || [];
+    video.currentTime = data.lastPosition || 0;
+    updateProgressDisplay();
+  } catch (err) {
+    console.error("Error loading progress:", err);
+    watchedIntervals = [];
+    video.currentTime = 0;
+    updateProgressDisplay();
+  }
 }
 
+// On metadata loaded, get duration and load saved progress
 video.addEventListener("loadedmetadata", () => {
   videoDuration = Math.floor(video.duration);
   loadProgress();
-  console.log("Loaded Metadata → Duration:", videoDuration);
 });
 
+// Reset progress
 function resetProgress() {
   fetch(API_URL, {
     method: "DELETE",
   })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("Reset successful:", data);
+    .then((res) => {
+      if (!res.ok) throw new Error("Reset failed");
       watchedIntervals = [];
+      startTime = null;
       video.currentTime = 0;
       progressText.textContent = "0%";
       document.getElementById("progressBar").style.width = "0%";
