@@ -2,28 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Lecture Tracker</title>
+  <title>Lecture Progress Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans p-8">
-  <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-lg p-6">
-    <h1 class="text-2xl font-bold mb-4 text-center">🎓 Lecture Progress Tracker</h1>
-
-    <div class="flex flex-col items-center">
-      <video id="videoPlayer" class="w-full mb-4 rounded-md border-2 border-gray-300" controls>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex items-center justify-center font-sans">
+  <div class="max-w-2xl w-full bg-white shadow-2xl rounded-2xl p-6 space-y-6 border border-gray-200">
+    
+    <h1 class="text-3xl font-bold text-center text-gray-800">🎓 Lecture Progress Tracker</h1>
+    
+    <div class="flex flex-col items-center space-y-4">
+      <video id="videoPlayer" class="w-full rounded-xl shadow-md border border-gray-300" controls>
         <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
       </video>
-      <div class="progress-container">
-        <div id="watched-bar"></div>
-      </div>      
-      <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden mb-2">
+
+      <!-- Progress Bar -->
+      <div class="w-full bg-gray-300 rounded-full h-4 overflow-hidden relative">
         <div id="progressBar" class="bg-green-500 h-full w-0 transition-all duration-300 ease-in-out"></div>
       </div>
-      <p class="text-sm text-gray-700">Progress: <span id="progressText">0%</span></p>
-      <button
-        id="resetBtn"
-        class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded shadow-md transition">
-        🔄 Reset Progress
+
+      <!-- Text Stats -->
+      <div class="flex flex-col items-center text-sm text-gray-700 font-medium space-y-1">
+        <p>Progress: <span id="progressText">0%</span></p>
+        <p id="time-display">Watched: 0s / 0s</p>
+      </div>
+
+      <div id="checkmarkContainer" class="hidden mt-4">
+        <svg class="w-12 h-12 text-green-500 animate-bounce" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        <p class="text-green-600 font-semibold mt-1">Completed!</p>
+      </div>      
+
+      <!-- Reset Button -->
+      <button id="resetBtn" class="mt-4 px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition duration-200">
+        🔁 Reset Progress
       </button>
     </div>
   </div>

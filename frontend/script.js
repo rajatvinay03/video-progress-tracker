@@ -44,21 +44,61 @@ function updateWatchedBar(intervals, duration) {
     document.getElementById('watched-bar').style.width = `${percentage}%`;
   
     console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
-}  
+}
 
-function updateProgressDisplay() {
-    console.log("Running updateProgressDisplay with duration:", videoDuration);
+function updateTimeDisplay(intervals, duration) {
+    let totalWatched = 0;
+    intervals.forEach(([start, end]) => totalWatched += end - start);
+    const display = document.getElementById('time-display');
+    display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
+  }
+  
 
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+  
+
+  function updateProgressDisplay() {
     const merged = mergeIntervals(watchedIntervals);
     const totalWatched = getTotalWatchedSeconds(merged);
-    const progress = ((totalWatched / videoDuration) * 100).toFixed(2);
-    progressText.textContent = `${progress}%`;
+    const progress = (totalWatched / videoDuration) * 100;
   
+    const progressText = document.getElementById("progressText");
     const progressBar = document.getElementById("progressBar");
+  
     progressBar.style.width = `${progress}%`;
+  
+    // Smooth animate the percentage
+    let start = parseFloat(progressText.textContent) || 0;
+    let end = progress;
+    let step = (end - start) / 20;
+    let count = 0;
+  
+    const animate = () => {
+      if (count >= 20) return;
+      start += step;
+      progressText.textContent = `Progress: ${start.toFixed(0)}%`;
+      count++;
+      requestAnimationFrame(animate);
+    };
+    animate();
+  
+    updateTimeDisplay(merged, videoDuration);
+  
+    // Show checkmark if completed
+    const checkmark = document.getElementById("checkmarkContainer");
+    if (progress >= 100) {
+      checkmark.classList.remove("hidden");
+    } else {
+      checkmark.classList.add("hidden");
+    }
 
     updateWatchedBar(merged, videoDuration);
   }
+  
 
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
