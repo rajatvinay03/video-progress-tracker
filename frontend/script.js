@@ -28,7 +28,27 @@ function getTotalWatchedSeconds(intervals) {
   return intervals.reduce((sum, [start, end]) => sum + (end - start), 0);
 }
 
+function updateWatchedBar(intervals, duration) {
+    if (!duration || duration === 0) {
+      console.warn("Duration is zero, cannot update watched bar.");
+      return;
+    }
+  
+    const merged = mergeIntervals(intervals);
+    let uniqueTime = 0;
+    merged.forEach(([start, end]) => {
+      uniqueTime += end - start;
+    });
+  
+    const percentage = (uniqueTime / duration) * 100;
+    document.getElementById('watched-bar').style.width = `${percentage}%`;
+  
+    console.log("Watched:", uniqueTime, "Duration:", duration, "Percent:", percentage);
+}  
+
 function updateProgressDisplay() {
+    console.log("Running updateProgressDisplay with duration:", videoDuration);
+
     const merged = mergeIntervals(watchedIntervals);
     const totalWatched = getTotalWatchedSeconds(merged);
     const progress = ((totalWatched / videoDuration) * 100).toFixed(2);
@@ -36,6 +56,8 @@ function updateProgressDisplay() {
   
     const progressBar = document.getElementById("progressBar");
     progressBar.style.width = `${progress}%`;
+
+    updateWatchedBar(merged, videoDuration);
   }
 
 video.addEventListener("play", () => {
@@ -62,13 +84,16 @@ function saveProgress() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ intervals: watchedIntervals, duration: videoDuration })
-  });
+    // console.log("Saving progress:", watchedIntervals, "with duration:", videoDuration);
+  
+});
 }
 
 async function loadProgress() {
   const res = await fetch(API_URL);
   const data = await res.json();
   watchedIntervals = data.intervals || [];
+  console.log("Loaded Progress:", watchedIntervals, "Duration:", videoDuration);
   video.currentTime = watchedIntervals.length ? watchedIntervals[watchedIntervals.length - 1][1] : 0;
   updateProgressDisplay();
 }
@@ -76,4 +101,33 @@ async function loadProgress() {
 video.addEventListener("loadedmetadata", () => {
   videoDuration = Math.floor(video.duration);
   loadProgress();
-});
+  console.log("Loaded Metadata → Duration:", videoDuration);});
+
+  function resetProgress() {
+    fetch(API_URL, { method: "DELETE" })
+      .then(res => res.json())
+      .then(data => {
+        console.log(data.message || "Progress reset");
+        watchedIntervals = [];
+        video.currentTime = 0;
+        updateProgressDisplay();
+      })
+      .catch(err => console.error("Error resetting progress:", err));
+  }
+  document.getElementById("resetBtn").addEventListener("click", resetProgress);
+
+  function resetProgress() {
+    fetch(API_URL, {
+      method: "DELETE",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Reset successful:", data);
+        watchedIntervals = [];
+        progressText.textContent = "0%";
+        document.getElementById("progressBar").style.width = "0%";
+        document.getElementById("watched-bar").style.width = "0%";
+        video.currentTime = 0;
+      })
+      .catch((err) => console.error("Error resetting progress:", err));
+  }

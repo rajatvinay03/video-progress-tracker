@@ -13,10 +13,18 @@
       <video id="videoPlayer" class="w-full mb-4 rounded-md border-2 border-gray-300" controls>
         <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
       </video>
+      <div class="progress-container">
+        <div id="watched-bar"></div>
+      </div>      
       <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden mb-2">
         <div id="progressBar" class="bg-green-500 h-full w-0 transition-all duration-300 ease-in-out"></div>
       </div>
       <p class="text-sm text-gray-700">Progress: <span id="progressText">0%</span></p>
+      <button
+        id="resetBtn"
+        class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded shadow-md transition">
+        🔄 Reset Progress
+      </button>
     </div>
   </div>
 

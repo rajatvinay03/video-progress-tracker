@@ -31,4 +31,19 @@ app.post('/api/progress/:userId', (req, res) => {
   res.status(200).json({ message: 'Progress updated successfully.' });
 });
 
+app.delete('/api/progress/:userId', (req, res) => {
+    const userId = req.params.userId;
+    const filePath = './userProgress.json';
+  
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Progress file not found." });
+    }
+  
+    const data = JSON.parse(fs.readFileSync(filePath));
+    delete data[userId];
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  
+    res.json({ message: "Progress reset successfully." });
+  });
+
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
