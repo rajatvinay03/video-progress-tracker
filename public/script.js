@@ -4,6 +4,7 @@ const userId = "user123"; // Static for demo
 let watchedIntervals = [];
 let startTime = null;
 let videoDuration = 0;
+let isResetting = false;
 
 const API_URL = "/api/progress/" + userId;
 
@@ -47,11 +48,10 @@ function updateWatchedBar(intervals, duration) {
 }
 
 function updateTimeDisplay(intervals, duration) {
-  let totalWatched = 0;
-  intervals.forEach(([start, end]) => totalWatched += end - start);
+  let totalWatched = getTotalWatchedSeconds(intervals);
   const display = document.getElementById('time-display');
   display.innerText = `Watched: ${formatTime(totalWatched)} / ${formatTime(duration)}`;
-} 
+}
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -60,8 +60,6 @@ function formatTime(seconds) {
 }
 
 function showBadge(progress) {
-  if (isNaN(progress)) return;
-
   let badge = '';
   if (progress >= 90) badge = '🎯 Master Learner!';
   else if (progress >= 50) badge = '📘 Halfway Hero!';
@@ -74,12 +72,9 @@ function showBadge(progress) {
 function updateProgressDisplay() {
   const merged = mergeIntervals(watchedIntervals);
   const totalWatched = getTotalWatchedSeconds(merged);
-  const safeDuration = videoDuration || video.duration || 1;
-  const progress = (totalWatched / safeDuration) * 100;
+  const progress = (totalWatched / videoDuration) * 100;
 
-  const progressText = document.getElementById("progressText");
   const progressBar = document.getElementById("progressBar");
-
   progressBar.style.width = `${progress}%`;
 
   // Smooth animate the percentage
@@ -97,26 +92,23 @@ function updateProgressDisplay() {
   };
   animate();
 
-  updateTimeDisplay(merged, safeDuration);
+  updateTimeDisplay(merged, videoDuration);
 
   const checkmark = document.getElementById("checkmarkContainer");
-  const isComplete = Math.min(progress, 100) >= 99.5;
-  if (isComplete) {
+  if (progress >= 100) {
     checkmark.classList.remove("hidden");
   } else {
     checkmark.classList.add("hidden");
   }
 
-  updateWatchedBar(merged, safeDuration);
-  showBadge(progress); 
+  updateWatchedBar(merged, videoDuration);
+  showBadge(progress);
 }
 
-// Track play
 video.addEventListener("play", () => {
   startTime = Math.floor(video.currentTime);
 });
 
-// Track pause
 video.addEventListener("pause", () => {
   const endTime = Math.floor(video.currentTime);
   if (startTime !== null && endTime > startTime) {
@@ -128,8 +120,13 @@ video.addEventListener("pause", () => {
   }
 });
 
-// Track during playback
+video.addEventListener("ended", () => {
+  saveProgress();
+});
+
 video.addEventListener("timeupdate", () => {
+  if (isResetting) return;
+
   if (startTime === null) startTime = Math.floor(video.currentTime);
 
   const current = Math.floor(video.currentTime);
@@ -141,11 +138,6 @@ video.addEventListener("timeupdate", () => {
   }
 
   updateProgressDisplay();
-});
-
-// Save when ended
-video.addEventListener("ended", () => {
-  saveProgress();
 });
 
 function saveProgress() {
@@ -174,6 +166,8 @@ video.addEventListener("loadedmetadata", () => {
 });
 
 function resetProgress() {
+  isResetting = true;
+
   fetch(API_URL, {
     method: "DELETE",
   })
@@ -189,8 +183,15 @@ function resetProgress() {
       document.getElementById("badge-display").innerText = "";
       updateTimeDisplay([], videoDuration);
       updateWatchedBar([], videoDuration);
+
+      setTimeout(() => {
+        isResetting = false;
+      }, 500);
     })
-    .catch((err) => console.error("Error resetting progress:", err));
+    .catch((err) => {
+      console.error("Error resetting progress:", err);
+      isResetting = false;
+    });
 }
 
 document.getElementById("resetBtn").addEventListener("click", resetProgress);
