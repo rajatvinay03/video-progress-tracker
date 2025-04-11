@@ -5,13 +5,13 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // ✅ Use environment port on Render
+const PORT = process.env.PORT || 3000;
+
+// ✅ Serve frontend files
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cors());
 app.use(bodyParser.json());
-
-// ✅ Serve frontend files
-app.use(express.static(path.join(__dirname, '../public')));
 
 const dataPath = path.join(__dirname, 'data', 'userProgress.json');
 
@@ -49,8 +49,7 @@ app.delete('/api/progress/:userId', (req, res) => {
 
 // ✅ Catch-all for SPA routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ✅ Start server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
