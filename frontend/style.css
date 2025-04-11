@@ -25,3 +25,18 @@ body {
     transition: width 0.3s ease;
   }
     
+  @media (max-width: 600px) {
+    video {
+      width: 100%;
+    }
+  
+    .progress-container {
+      height: 6px;
+    }
+  
+    #time-display, #badge-display, #leaderboard {
+      font-size: 14px;
+      padding: 5px;
+    }
+  }
+  

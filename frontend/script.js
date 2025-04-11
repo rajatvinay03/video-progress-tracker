@@ -68,7 +68,6 @@ function updateTimeDisplay(intervals, duration) {
   
     document.getElementById("badge-display").innerText = `Badge: ${badge}`;
   }
-  
 
   function updateProgressDisplay() {
     const merged = mergeIntervals(watchedIntervals);
@@ -153,7 +152,6 @@ video.addEventListener("loadedmetadata", () => {
   loadProgress();
   console.log("Loaded Metadata → Duration:", videoDuration);});
   
-
   function resetProgress() {
     fetch(API_URL, {
       method: "DELETE",
@@ -171,5 +169,4 @@ video.addEventListener("loadedmetadata", () => {
       })
       .catch((err) => console.error("Error resetting progress:", err));
   }
-  
   document.getElementById("resetBtn").addEventListener("click", resetProgress);
